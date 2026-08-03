@@ -63,7 +63,7 @@ class MemoryEngine:
         self._save_memories()
         return True
 
-    def retrieve_relevant_memories(self, query: str, limit: int = 5) -> List[str]:
+    def retrieve_relevant_memories(self, query: str, limit: int = 10) -> List[str]:
         """Search and retrieve memories relevant to user query."""
         if not self.memories:
             return []
@@ -76,24 +76,29 @@ class MemoryEngine:
             fact_text = mem.get("fact", "")
             fact_lower = fact_text.lower()
             
-            # Simple keyword overlap scoring
+            # Keyword overlap scoring
             score = 0
             for word in query_words:
                 if len(word) > 2 and word in fact_lower:
-                    score += 1
+                    score += 2
                     
-            if score > 0 or any(w in query_lower for w in ["quién", "quien", "quienes", "recuerdas", "sabes", "nombre", "preferencia", "taza", "teléfono", "telefono"]):
-                scored_memories.append((score, fact_text))
+            if mem.get("category") == "user_preference":
+                score += 1
+
+            scored_memories.append((score, fact_text))
 
         # Sort by relevance score
         scored_memories.sort(key=lambda x: x[0], reverse=True)
-        results = [m[1] for m in scored_memories[:limit]]
+        results = [m[1] for m in scored_memories[:limit] if m[0] > 0]
         
-        # Always include top user memories if query asks about user/identity
-        if not results and any(w in query_lower for w in ["recuerdas", "sabes de mi", "quién soy", "quien soy", "mi"]):
-            results = [m["fact"] for m in self.memories if m.get("category") == "user_preference"]
+        # Always include all user memories if query asks about memory/identity/preferences
+        if any(w in query_lower for w in ["recuerdas", "sabes de mi", "de mí", "quién soy", "quien soy", "mi", "mis", "gustos", "libro", "juego", "juegos"]):
+            user_mems = [m["fact"] for m in self.memories if m.get("category") in ["user_preference", "conversation"]]
+            for um in user_mems:
+                if um not in results:
+                    results.append(um)
 
-        return results
+        return results[:limit]
 
     def get_all_memories(self) -> List[Dict[str, Any]]:
         """Return all stored memories."""

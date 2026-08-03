@@ -53,9 +53,11 @@ class GeminiAgent:
         if self.robot:
             self.robot.express_emotion("thinking")
 
-        # 2. Extract facts into persistent memory
-        if any(w in text.lower() for w in ["me llamo", "mi nombre es", "mi color favorito", "mi teléfono es", "me gusta", "recuerda"]):
-            self.memory.add_memory(text, category="user_preference")
+        # 2. AUTOMATIC CONTINUOUS MEMORY RECORDING
+        # Save any informative message (longer than 3 words) into long-term memory automatically
+        words = text.strip().split()
+        if len(words) >= 3 and not any(w in text.lower() for w in ["hola", "buenos días", "buenas noches"]):
+            self.memory.add_memory(f"El usuario comentó: '{text}'", category="conversation")
 
         # 3. Retrieve relevant long-term memories
         memories = self.memory.retrieve_relevant_memories(text)
