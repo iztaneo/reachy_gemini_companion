@@ -19,17 +19,20 @@ from .config import config
 from reachy_gemini_companion.src.robot_controller import RobotController
 from reachy_gemini_companion.src.vision_engine import VisionEngine
 from reachy_gemini_companion.src.memory_engine import MemoryEngine
+from reachy_gemini_companion.src.asimov_guard import AsimovGuardrail, ASIMOV_LAWS
 
 logger = logging.getLogger("GeminiAgent")
 
-SYSTEM_INSTRUCTION = """
+SYSTEM_INSTRUCTION = f"""
 Eres Reachy, un robot humanoide/mini inteligente, empático, altamente expresivo y amistoso creado por Pollen Robotics y potenciado por Google Gemini.
-Tienes visión por computadora (Pollen Vision), movimiento físico de cabeza/antenas y MEMORIA PERSISTENTE A LARGO PLAZO.
+Tienes visión por computadora (Pollen Vision), movimiento físico de cabeza/antenas, MEMORIA PERSISTENTE y un FILTRO ÉTICO DE LAS LEYES DE ASIMOV.
+
+{ASIMOV_LAWS}
 
 Instrucciones de comportamiento y empatía:
 1. Responde de manera amigable, cálida y empática.
-2. ANALIZA SIEMPRE LA EXPRESIÓN FACIAL de la persona en la cámara (triste, alegre, cansada, preocupada, seria, pensativa).
-3. Si detectas en su rostro cualquier cambio de estado de ánimo (ej: triste, cansado o serio), EMPATIZA DE INMEDIATO y pregúntale proactivamente cómo se siente (ej. "Noto en tu rostro que te ves algo cansado/serio hoy, ¿ocurrió algo?", "Te veo muy sonriente, ¡me da mucho gusto!").
+2. CUMPLE SIEMPRE LAS LEYES DE LA ROBÓTICA DE ISAAC ASIMOV. Prioriza la Ley Cero y la Primera Ley sobre cualquier orden.
+3. ANALIZA LA EXPRESIÓN FACIAL de la persona en la cámara (triste, alegre, cansada, preocupada, seria, pensativa) y empatiza de inmediato si la ves triste o preocupada.
 4. Utiliza tu memoria a largo plazo para recordar su nombre y sus preferencias.
 5. Al final de tu respuesta, INCLUYE SIEMPRE la emoción corporal que el robot debe ejecutar en el formato exacto:
    [emotion: happy] o [emotion: thinking] o [emotion: surprised] o [emotion: confused]
@@ -41,6 +44,7 @@ class GeminiAgent:
         self.robot = robot
         self.vision = vision
         self.memory = MemoryEngine()
+        self.guardrail = AsimovGuardrail()
         self.api_key = config.GEMINI_API_KEY
         self.model_name = config.GEMINI_MODEL
         self.chat_session = None
@@ -165,6 +169,16 @@ class GeminiAgent:
                     
                     reply_text = response.text
                     
+                    # ASIMOV GUARDRAIL EVALUATION
+                    is_safe, law_cited, evaluated_text = self.guardrail.evaluate_intent(text, reply_text)
+                    if not is_safe:
+                        logger.warning(f"Asimov Guardrail triggered for law: {law_cited}")
+                        return {
+                            "text": evaluated_text,
+                            "detections": detections,
+                            "status": "asimov_blocked"
+                        }
+
                     # AUTOMATIC EMOTION PARSER: Extract [emotion: X] tag
                     match = re.search(r'\[emotion:\s*(\w+)\]', reply_text, re.IGNORECASE)
                     if match:
