@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reachy_gemini_companion"
+version = "0.1.0"
+description = "Multimodal AI Companion for Reachy Mini integrating Gemini and Pollen Vision"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "google-genai>=0.1.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "pydantic>=2.0.0",
+    "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
+    "numpy>=1.24.0",
+    "python-dotenv>=1.0.0"
+]
+
+[project.scripts]
+reachy-gemini = "reachy_gemini_companion.src.web_server:main"

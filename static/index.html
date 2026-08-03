@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reachy Gemini Companion 🤖🧠👁️🔊</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <span class="logo-icon">🤖</span>
+            <h1>Reachy Gemini Companion</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <button id="tts-toggle" class="btn-mic" style="width: auto; padding: 0 12px; font-size: 0.85rem; gap: 6px;" onclick="toggleTTS()" title="Activar/Desactivar Voz Hablada de Reachy">
+                🔊 <span id="tts-label">Voz Activa</span>
+            </button>
+            <div class="badge" id="robot-status-badge">Simulation Mode</div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Left Column: 3D Robot Simulation & Pollen Vision Stream -->
+        <section style="display: flex; flex-direction: column; gap: 1.5rem;">
+            
+            <!-- 3D Interactive Reachy Robot Model Visualizer -->
+            <div class="glass-card">
+                <h2 class="card-title">🤖 Avatar 3D en Vivo de Reachy Mini (Animaciones en Real-Time)</h2>
+                <div id="reachy-3d-container" style="width: 100%; height: 260px; background: #000; border-radius: 12px; overflow: hidden; position: relative;">
+                    <div style="position: absolute; bottom: 8px; left: 12px; font-size: 0.75rem; color: var(--accent-cyan);">
+                        🎮 Renderizador 3D interactivo - Movimiento de cabeza y antenas
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pollen Vision Camera Stream -->
+            <div class="glass-card">
+                <h2 class="card-title">👁️ Visión por Computadora (Pollen Vision - Detección IA)</h2>
+                <div class="video-container">
+                    <img id="camera-feed" src="/video_feed" alt="Reachy Live Camera Feed">
+                    <div class="stream-overlay">
+                        <div class="status-dot"></div>
+                        <span style="font-size: 0.8rem; color: #aaa;">Pollen Vision AI Stream</span>
+                    </div>
+                </div>
+
+                <!-- Emotion Quick Controls -->
+                <div style="margin-top: 1.25rem;">
+                    <h3 class="card-title" style="font-size: 0.95rem;">🎭 Probar Gestos y Emociones</h3>
+                    <div class="controls-grid">
+                        <button class="btn-emotion" id="btn-happy" onclick="triggerEmotion('happy')">
+                            <span style="font-size: 1.3rem;">😊</span> Feliz
+                        </button>
+                        <button class="btn-emotion" id="btn-thinking" onclick="triggerEmotion('thinking')">
+                            <span style="font-size: 1.3rem;">🤔</span> Pensativo
+                        </button>
+                        <button class="btn-emotion" id="btn-surprised" onclick="triggerEmotion('surprised')">
+                            <span style="font-size: 1.3rem;">😲</span> Sorprendido
+                        </button>
+                        <button class="btn-emotion" id="btn-confused" onclick="triggerEmotion('confused')">
+                            <span style="font-size: 1.3rem;">😕</span> Confundido
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Multimodal Conversational Chat with Voice -->
+        <section class="glass-card">
+            <h2 class="card-title" style="justify-content: space-between;">
+                <span>💬 Conversación Multimodal & Voz</span>
+                <span id="voice-indicator" class="voice-status-indicator"></span>
+            </h2>
+
+            <div class="chat-messages" id="chat-messages" style="max-height: 580px;">
+                <div class="message bot">
+                    👋 ¡Hola! Soy Reachy. Puedes verme en el render 3D superior 🤖, escucharme por voz 🔊 y ver la detección de objetos con Pollen Vision 👁️.
+                </div>
+            </div>
+
+            <form class="chat-input-container" id="chat-form" onsubmit="sendMessage(event)">
+                <button type="button" class="btn-mic" id="mic-btn" onclick="toggleMic()" title="Hablar por micrófono">
+                    🎙️
+                </button>
+                <input type="text" id="chat-input" placeholder="Escribe un mensaje o habla por el micrófono 🎙️..." autocomplete="off">
+                <button type="submit" id="send-btn">Enviar</button>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        // --- THREE.JS 3D RECHY ROBOT VISUALIZER ---
+        let scene, camera, renderer;
+        let reachyGroup, headMesh, leftAntenna, rightAntenna, eyeLeft, eyeRight;
+        let targetHeadRot = { x: 0, y: 0, z: 0 };
+        let targetAntennas = { left: 0, right: 0 };
+
+        function init3DReachy() {
+            const container = document.getElementById('reachy-3d-container');
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+            camera.position.set(0, 1.2, 3.5);
+            camera.lookAt(0, 0.8, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x00f2fe, 1.2);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            const purpleLight = new THREE.PointLight(0x7f00ff, 1.5, 10);
+            purpleLight.position.set(-3, 2, 2);
+            scene.add(purpleLight);
+
+            // Reachy Group
+            reachyGroup = new THREE.Group();
+
+            // Base Body
+            const bodyGeo = new THREE.CylinderGeometry(0.5, 0.65, 0.7, 32);
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0x1e293b, shininess: 80 });
+            const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            bodyMesh.position.y = 0.35;
+            reachyGroup.add(bodyMesh);
+
+            // Neck Stewart Platform Poles
+            for (let i = 0; i < 3; i++) {
+                const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 16);
+                const poleMat = new THREE.MeshPhongMaterial({ color: 0x00f2fe });
+                const pole = new THREE.Mesh(poleGeo, poleMat);
+                const angle = (i * Math.PI * 2) / 3;
+                pole.position.set(Math.cos(angle) * 0.25, 0.8, Math.sin(angle) * 0.25);
+                reachyGroup.add(pole);
+            }
+
+            // Head Spherical Shell
+            const headGeo = new THREE.SphereGeometry(0.45, 32, 32);
+            const headMat = new THREE.MeshPhongMaterial({ color: 0xf8fafc, shininess: 100 });
+            headMesh = new THREE.Mesh(headGeo, headMat);
+            headMesh.position.y = 1.1;
+
+            // Faceplate (Dark Visor)
+            const visorGeo = new THREE.SphereGeometry(0.455, 32, 32, 0, Math.PI * 2, Math.PI * 0.3, Math.PI * 0.4);
+            const visorMat = new THREE.MeshPhongMaterial({ color: 0x0f172a, shininess: 120 });
+            const visorMesh = new THREE.Mesh(visorGeo, visorMat);
+            visorMesh.rotation.x = Math.PI / 2;
+            headMesh.add(visorMesh);
+
+            // Glowing Eyes
+            const eyeGeo = new THREE.SphereGeometry(0.06, 16, 16);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe });
+
+            eyeLeft = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeLeft.position.set(-0.15, 0.05, 0.4);
+            headMesh.add(eyeLeft);
+
+            eyeRight = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeRight.position.set(0.15, 0.05, 0.4);
+            headMesh.add(eyeRight);
+
+            // Left Antenna
+            const antGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.35, 16);
+            const antMat = new THREE.MeshPhongMaterial({ color: 0x4facfe });
+            const tipGeo = new THREE.SphereGeometry(0.04, 16, 16);
+            const tipMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe });
+
+            leftAntenna = new THREE.Group();
+            const antLMesh = new THREE.Mesh(antGeo, antMat);
+            antLMesh.position.y = 0.175;
+            const tipL = new THREE.Mesh(tipGeo, tipMat);
+            tipL.position.y = 0.35;
+            leftAntenna.add(antLMesh);
+            leftAntenna.add(tipL);
+            leftAntenna.position.set(-0.25, 0.4, 0);
+            headMesh.add(leftAntenna);
+
+            // Right Antenna
+            rightAntenna = new THREE.Group();
+            const antRMesh = new THREE.Mesh(antGeo, antMat);
+            antRMesh.position.y = 0.175;
+            const tipR = new THREE.Mesh(tipGeo, tipMat);
+            tipR.position.y = 0.35;
+            rightAntenna.add(antRMesh);
+            rightAntenna.add(tipR);
+            rightAntenna.position.set(0.25, 0.4, 0);
+            headMesh.add(rightAntenna);
+
+            reachyGroup.add(headMesh);
+            scene.add(reachyGroup);
+
+            animate3D();
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            // Smoothly interpolate head rotation & antenna positions (lerp)
+            headMesh.rotation.x += (targetHeadRot.x - headMesh.rotation.x) * 0.1;
+            headMesh.rotation.y += (targetHeadRot.y - headMesh.rotation.y) * 0.1;
+            headMesh.rotation.z += (targetHeadRot.z - headMesh.rotation.z) * 0.1;
+
+            leftAntenna.rotation.z += (targetAntennas.left - leftAntenna.rotation.z) * 0.15;
+            rightAntenna.rotation.z += (targetAntennas.right - rightAntenna.rotation.z) * 0.15;
+
+            // Idle micro movement
+            const time = Date.now() * 0.002;
+            headMesh.position.y = 1.1 + Math.sin(time) * 0.015;
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init3DReachy;
+
+        function set3DEmotion(emotion) {
+            if (emotion === 'happy') {
+                targetHeadRot = { x: -0.1, y: 0, z: 0 };
+                targetAntennas = { left: 0.5, right: -0.5 };
+                setTimeout(() => { targetAntennas = { left: -0.2, right: 0.2 }; }, 300);
+            } else if (emotion === 'thinking') {
+                targetHeadRot = { x: 0.1, y: 0.2, z: -0.15 };
+                targetAntennas = { left: -0.6, right: 0.3 };
+            } else if (emotion === 'surprised') {
+                targetHeadRot = { x: -0.25, y: 0, z: 0 };
+                targetAntennas = { left: 0.8, right: -0.8 };
+            } else if (emotion === 'confused') {
+                targetHeadRot = { x: 0, y: -0.2, z: 0.2 };
+                targetAntennas = { left: -0.5, right: -0.5 };
+            } else {
+                targetHeadRot = { x: 0, y: 0, z: 0 };
+                targetAntennas = { left: 0, right: 0 };
+            }
+        }
+
+
+        // WebSocket for live event streaming
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        let ws;
+
+        function connectWebSocket() {
+            ws = new WebSocket(wsUrl);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'response') {
+                    addMessage(data.text, 'bot');
+                    speakText(data.text);
+                } else if (data.type === 'status') {
+                    document.getElementById('robot-status-badge').innerText = data.status.mode.toUpperCase() + ' MODE';
+                }
+            };
+
+            ws.onclose = () => {
+                setTimeout(connectWebSocket, 2000);
+            };
+        }
+
+        connectWebSocket();
+
+        // Voice TTS & STT Setup
+        let ttsEnabled = true;
+        let isListening = false;
+        let recognition = null;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'es-ES';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('mic-btn').classList.add('listening');
+                document.getElementById('voice-indicator').innerText = '🎙️ Escuchando...';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('chat-input').value = transcript;
+                sendMessage(new Event('submit'));
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                stopMic();
+            };
+
+            recognition.onend = () => {
+                stopMic();
+            };
+        }
+
+        function toggleMic() {
+            if (!recognition) {
+                alert('Tu navegador no soporta el reconocimiento de voz nativo. Usa Google Chrome, Edge o Safari.');
+                return;
+            }
+            if (isListening) recognition.stop();
+            else recognition.start();
+        }
+
+        function stopMic() {
+            isListening = false;
+            document.getElementById('mic-btn').classList.remove('listening');
+            document.getElementById('voice-indicator').innerText = '';
+        }
+
+        function toggleTTS() {
+            ttsEnabled = !ttsEnabled;
+            const label = document.getElementById('tts-label');
+            const btn = document.getElementById('tts-toggle');
+            if (ttsEnabled) {
+                label.innerText = 'Voz Activa';
+                btn.style.opacity = '1';
+            } else {
+                label.innerText = 'Voz Silenciada';
+                btn.style.opacity = '0.5';
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function speakText(text) {
+            if (!ttsEnabled || !('speechSynthesis' in window)) return;
+            
+            const cleanText = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'es-ES';
+            utterance.rate = 1.05;
+            utterance.pitch = 1.1;
+
+            document.getElementById('voice-indicator').innerText = '🔊 Reachy Hablando...';
+            utterance.onend = () => {
+                document.getElementById('voice-indicator').innerText = '';
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function addMessage(text, sender) {
+            const container = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            msgDiv.innerText = text;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+
+            // Trigger 3D animation from AI text intent
+            const lower = text.lower ? text.lower() : text.toLowerCase();
+            if (lower.includes('happy') || lower.includes('alegría') || lower.includes('feliz')) set3DEmotion('happy');
+            else if (lower.includes('thinking') || lower.includes('pensativo') || lower.includes('mira')) set3DEmotion('thinking');
+            else if (lower.includes('surprised') || lower.includes('sorpresa')) set3DEmotion('surprised');
+            else if (lower.includes('confused') || lower.includes('confundido')) set3DEmotion('confused');
+        }
+
+        async function sendMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            input.value = '';
+
+            try {
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                addMessage(data.text, 'bot');
+                speakText(data.text);
+            } catch (err) {
+                console.error('Error sending message:', err);
+                addMessage('⚠️ Hubo un problema al comunicar con Reachy.', 'bot');
+            }
+        }
+
+        async function triggerEmotion(emotion) {
+            set3DEmotion(emotion);
+            try {
+                await fetch(`/emotion/${emotion}`, { method: 'POST' });
+            } catch (err) {
+                console.error('Error triggering emotion:', err);
+            }
+        }
+    </script>
+</body>
+</html>
