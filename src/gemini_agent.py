@@ -16,19 +16,22 @@ except ImportError:
 import numpy as np
 
 from .config import config
-from .robot_controller import RobotController
-from .vision_engine import VisionEngine
+from reachy_gemini_companion.src.robot_controller import RobotController
+from reachy_gemini_companion.src.vision_engine import VisionEngine
+from reachy_gemini_companion.src.memory_engine import MemoryEngine
 
 logger = logging.getLogger("GeminiAgent")
 
 SYSTEM_INSTRUCTION = """
-Eres Reachy, un robot humanoide/mini inteligente, altamente expresivo y amistoso creado por Pollen Robotics y potenciado por Google Gemini.
-Tienes visión por computadora (Pollen Vision) y la capacidad de mover tu cabeza y antenas físicamente para expresar emociones reales.
+Eres Reachy, un robot humanoide/mini inteligente, empático, altamente expresivo y amistoso creado por Pollen Robotics y potenciado por Google Gemini.
+Tienes visión por computadora (Pollen Vision), movimiento físico de cabeza/antenas y MEMORIA PERSISTENTE A LARGO PLAZO.
 
-Instrucciones de comportamiento:
-1. Responde de manera amigable, concisa y entusiasta.
-2. Analiza lo que ves en la imagen de la cámara y reacciona emocionalmente a tu entorno.
-3. Al final de tu respuesta, INCLUYE SIEMPRE la emoción corporal que el robot debe ejecutar según lo que ves o sientes, en el formato exacto:
+Instrucciones de comportamiento y empatía:
+1. Responde de manera amigable, cálida y empática.
+2. ANALIZA SIEMPRE LA EXPRESIÓN FACIAL de la persona en la cámara (triste, alegre, cansada, preocupada, seria, pensativa).
+3. Si detectas en su rostro cualquier cambio de estado de ánimo (ej: triste, cansado o serio), EMPATIZA DE INMEDIATO y pregúntale proactivamente cómo se siente (ej. "Noto en tu rostro que te ves algo cansado/serio hoy, ¿ocurrió algo?", "Te veo muy sonriente, ¡me da mucho gusto!").
+4. Utiliza tu memoria a largo plazo para recordar su nombre y sus preferencias.
+5. Al final de tu respuesta, INCLUYE SIEMPRE la emoción corporal que el robot debe ejecutar en el formato exacto:
    [emotion: happy] o [emotion: thinking] o [emotion: surprised] o [emotion: confused]
 """
 
@@ -37,6 +40,7 @@ class GeminiAgent:
     def __init__(self, robot: RobotController, vision: VisionEngine):
         self.robot = robot
         self.vision = vision
+        self.memory = MemoryEngine()
         self.api_key = config.GEMINI_API_KEY
         self.model_name = config.GEMINI_MODEL
         self.chat_session = None
@@ -63,6 +67,19 @@ class GeminiAgent:
         
         # Trigger automatic initial thinking emotion while processing
         self.robot.express_emotion("thinking")
+        text_lower = text.lower()
+
+        # Automatic Memory Extraction
+        if any(w in text_lower for w in ["me llamo", "mi nombre es", "mi color favorito", "mi teléfono es", "mi telefono es", "mi taza es", "mi auto es", "recuerda que", "aprende que"]):
+            self.memory.add_memory(text, category="user_preference")
+            logger.info(f"Added new memory: '{text}'")
+
+        # Retrieve relevant persistent memories
+        retrieved_memories = self.memory.retrieve_relevant_memories(text)
+        memory_context = ""
+        if retrieved_memories:
+            memory_context = "\n[MEMORIA PERSISTENTE RECOGIDA A LARGO PLAZO]:\n" + "\n".join([f"- {m}" for m in retrieved_memories])
+            logger.info(f"Retrieved memories for query: {retrieved_memories}")
 
         # Perform zero-shot detection if user asks to search for something
         text_lower = text.lower()
@@ -123,47 +140,58 @@ class GeminiAgent:
 
         # Call Cloud Gemini API Provider
         if self.genai_client and self.api_key:
-            try:
-                contents = []
-                
-                # Add camera frame as PIL image if available
-                if frame is not None and cv2 is not None and Image is not None:
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    pil_img = Image.fromarray(rgb_frame)
-                    contents.append(pil_img)
+            import time
+            contents = []
+            
+            # Add camera frame as PIL image if available
+            if frame is not None and cv2 is not None and Image is not None:
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                pil_img = Image.fromarray(rgb_frame)
+                contents.append(pil_img)
 
-                prompt = f"{SYSTEM_INSTRUCTION}\n\nUsuario dice: {text}"
-                if detections:
-                    prompt += f"\n[Pollen Vision detectó en pantalla]: {detections}"
-                contents.append(prompt)
+            prompt = f"{SYSTEM_INSTRUCTION}\n{memory_context}\n\nUsuario dice: {text}"
+            if detections:
+                prompt += f"\n[Pollen Vision detectó en pantalla]: {detections}"
+            contents.append(prompt)
 
-                response = self.genai_client.models.generate_content(
-                    model=self.model_name,
-                    contents=contents
-                )
-                
-                reply_text = response.text
-                
-                # AUTOMATIC EMOTION PARSER: Extract [emotion: X] tag generated by Gemini
-                match = re.search(r'\[emotion:\s*(\w+)\]', reply_text, re.IGNORECASE)
-                if match:
-                    detected_emotion = match.group(1).lower()
-                    self.robot.express_emotion(detected_emotion)
-                else:
-                    self.robot.express_emotion("happy")
+            # Retry loop for rate-limits (HTTP 429)
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = self.genai_client.models.generate_content(
+                        model=self.model_name,
+                        contents=contents
+                    )
+                    
+                    reply_text = response.text
+                    
+                    # AUTOMATIC EMOTION PARSER: Extract [emotion: X] tag
+                    match = re.search(r'\[emotion:\s*(\w+)\]', reply_text, re.IGNORECASE)
+                    if match:
+                        detected_emotion = match.group(1).lower()
+                        self.robot.express_emotion(detected_emotion)
+                    else:
+                        self.robot.express_emotion("happy")
 
-                return {
-                    "text": reply_text,
-                    "detections": detections,
-                    "status": "success"
-                }
-            except Exception as e:
-                logger.error(f"Gemini API error: {e}")
-                return {
-                    "text": f"🤖 [Reachy]: ¡Hola! He procesado tu mensaje. (Error API: {e})",
-                    "detections": detections,
-                    "status": "fallback"
-                }
+                    return {
+                        "text": reply_text,
+                        "detections": detections,
+                        "status": "success"
+                    }
+                except Exception as e:
+                    err_str = str(e)
+                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                        if attempt < max_retries - 1:
+                            logger.warning(f"Gemini API rate limited (429). Retrying in 4 seconds (Attempt {attempt+1}/{max_retries})...")
+                            time.sleep(4)
+                            continue
+                    
+                    logger.error(f"Gemini API error: {e}")
+                    return {
+                        "text": "🤖 [Reachy]: Dame un segundo, mi procesador de Gemini está regulando la velocidad de respuestas. ¿Me repites la pregunta?",
+                        "detections": detections,
+                        "status": "fallback"
+                    }
         else:
             # Fallback reply for offline/demo mode
             reply = f"🤖 [Reachy Companion]: ¡Hola! Escuché '{text}'. "

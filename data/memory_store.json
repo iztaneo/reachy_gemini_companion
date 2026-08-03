@@ -1,0 +1,15 @@
+[
+  {
+    "fact": "El robot se llama Reachy y es un asistente robótico amistoso.",
+    "category": "system"
+  },
+  {
+    "fact": "Reachy tiene la capacidad de mover su cabeza y antenas 3D y reconocer objetos con Pollen Vision.",
+    "category": "system"
+  },
+  {
+    "fact": "Mi nombre es César y me gusta el color azul y soy de indra",
+    "category": "user_preference",
+    "timestamp": "2026-08-03 13:52:09,126"
+  }
+]

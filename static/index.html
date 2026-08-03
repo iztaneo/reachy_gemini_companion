@@ -341,9 +341,19 @@
 
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(cleanText);
+            
+            // Auto-select best natural/neural Spanish voice
+            const voices = window.speechSynthesis.getVoices();
+            const spanishVoice = voices.find(v => (v.lang.startsWith('es') && (v.name.includes('Google') || v.name.includes('Neural') || v.name.includes('Enhanced') || v.name.includes('Paulina') || v.name.includes('Monica'))))
+                || voices.find(v => v.lang.startsWith('es'));
+
+            if (spanishVoice) {
+                utterance.voice = spanishVoice;
+            }
+
             utterance.lang = 'es-ES';
-            utterance.rate = 1.05;
-            utterance.pitch = 1.1;
+            utterance.rate = 1.0;  // Natural human rate
+            utterance.pitch = 1.0; // Natural human pitch
 
             document.getElementById('voice-indicator').innerText = '🔊 Reachy Hablando...';
             utterance.onend = () => {
@@ -351,6 +361,11 @@
             };
 
             window.speechSynthesis.speak(utterance);
+        }
+
+        // Preload voices on load
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
         }
 
         function addMessage(text, sender) {
