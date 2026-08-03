@@ -76,7 +76,52 @@ class GeminiAgent:
                     norm_x, norm_y = target["norm_center"]
                     self.robot.look_at(x=norm_x * 20, y=norm_y * 20, z=0)
 
-        # Call Gemini API if client is available
+        # Call Local Ollama LLM Provider
+        if config.LLM_PROVIDER == "ollama":
+            try:
+                import urllib.request
+                import json
+                
+                logger.info(f"Querying local Ollama model '{config.OLLAMA_MODEL}'...")
+                full_prompt = f"{SYSTEM_INSTRUCTION}\n\nUsuario dice: {text}"
+                if detections:
+                    prompt_details = [f"{d['label']} en coordenadas {d['center']}" for d in detections]
+                    full_prompt += f"\n[Pollen Vision detectó]: {', '.join(prompt_details)}"
+
+                url = f"{config.OLLAMA_HOST}/api/generate"
+                payload = json.dumps({
+                    "model": config.OLLAMA_MODEL,
+                    "prompt": full_prompt,
+                    "stream": False
+                }).encode("utf-8")
+                
+                req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=45) as resp:
+                    res_data = json.loads(resp.read().decode("utf-8"))
+                    reply_text = res_data.get("response", "")
+
+                # AUTOMATIC EMOTION PARSER: Extract [emotion: X] tag
+                match = re.search(r'\[emotion:\s*(\w+)\]', reply_text, re.IGNORECASE)
+                if match:
+                    detected_emotion = match.group(1).lower()
+                    self.robot.express_emotion(detected_emotion)
+                else:
+                    self.robot.express_emotion("happy")
+
+                return {
+                    "text": reply_text,
+                    "detections": detections,
+                    "status": "ollama_success"
+                }
+            except Exception as e:
+                logger.error(f"Ollama API error: {e}")
+                return {
+                    "text": f"🤖 [Reachy Local]: Error al consultar Ollama '{config.OLLAMA_MODEL}': {e}",
+                    "detections": detections,
+                    "status": "fallback"
+                }
+
+        # Call Cloud Gemini API Provider
         if self.genai_client and self.api_key:
             try:
                 contents = []

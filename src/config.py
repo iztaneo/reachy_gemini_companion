@@ -12,11 +12,16 @@ class Config:
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
     
-    # Robot configuration
+    # LLM Provider configuration ("gemini" for Cloud or "ollama" for Local)
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini").lower()
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma4:latest")
+    OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    
+    # Robot configuration (False = usa la cámara web real de la laptop / robot)
     REACHY_HOST: str = os.getenv("REACHY_HOST", "localhost")
     USE_MOCK_ROBOT: bool = os.getenv("USE_MOCK_ROBOT", "true").lower() in ("true", "1", "yes")
     
-    # Vision configuration (False = usa la cámara web real de la laptop / robot)
+    # Vision configuration
     USE_MOCK_VISION: bool = os.getenv("USE_MOCK_VISION", "false").lower() in ("true", "1", "yes")
 
 config = Config()
