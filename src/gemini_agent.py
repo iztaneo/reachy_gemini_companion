@@ -144,7 +144,6 @@ class GeminiAgent:
 
         # Call Cloud Gemini API Provider
         if self.genai_client and self.api_key:
-            import time
             contents = []
             
             # Add camera frame as PIL image if available
@@ -158,54 +157,48 @@ class GeminiAgent:
                 prompt += f"\n[Pollen Vision detectó en pantalla]: {detections}"
             contents.append(prompt)
 
-            # Retry loop for rate-limits (HTTP 429)
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    response = self.genai_client.models.generate_content(
-                        model=self.model_name,
-                        contents=contents
-                    )
-                    
-                    reply_text = response.text
-                    
-                    # ASIMOV GUARDRAIL EVALUATION
-                    is_safe, law_cited, evaluated_text = self.guardrail.evaluate_intent(text, reply_text)
-                    if not is_safe:
-                        logger.warning(f"Asimov Guardrail triggered for law: {law_cited}")
-                        return {
-                            "text": evaluated_text,
-                            "detections": detections,
-                            "status": "asimov_blocked"
-                        }
-
-                    # AUTOMATIC EMOTION PARSER: Extract [emotion: X] tag
-                    match = re.search(r'\[emotion:\s*(\w+)\]', reply_text, re.IGNORECASE)
-                    if match:
-                        detected_emotion = match.group(1).lower()
-                        self.robot.express_emotion(detected_emotion)
-                    else:
-                        self.robot.express_emotion("happy")
-
+            try:
+                response = self.genai_client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents
+                )
+                
+                reply_text = response.text
+                
+                # ASIMOV GUARDRAIL EVALUATION
+                is_safe, law_cited, evaluated_text = self.guardrail.evaluate_intent(text, reply_text)
+                if not is_safe:
+                    logger.warning(f"Asimov Guardrail triggered for law: {law_cited}")
                     return {
-                        "text": reply_text,
+                        "text": evaluated_text,
                         "detections": detections,
-                        "status": "success"
+                        "status": "asimov_blocked"
                     }
-                except Exception as e:
-                    err_str = str(e)
-                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                        if attempt < max_retries - 1:
-                            logger.warning(f"Gemini API rate limited (429). Retrying in 4 seconds (Attempt {attempt+1}/{max_retries})...")
-                            time.sleep(4)
-                            continue
-                    
-                    logger.error(f"Gemini API error: {e}")
-                    return {
-                        "text": "🤖 [Reachy]: Dame un segundo, mi procesador de Gemini está regulando la velocidad de respuestas. ¿Me repites la pregunta?",
-                        "detections": detections,
-                        "status": "fallback"
-                    }
+
+                # AUTOMATIC EMOTION PARSER: Extract [emotion: X] tag
+                match = re.search(r'\[emotion:\s*(\w+)\]', reply_text, re.IGNORECASE)
+                if match:
+                    detected_emotion = match.group(1).lower()
+                    self.robot.express_emotion(detected_emotion)
+                else:
+                    self.robot.express_emotion("happy")
+
+                return {
+                    "text": reply_text,
+                    "detections": detections,
+                    "status": "success"
+                }
+            except Exception as e:
+                logger.warning(f"Gemini API limit or error: {e}")
+                self.robot.express_emotion("thinking")
+                
+                # Fluid and natural fallback response
+                fluid_reply = "Estoy analizando detenidamente lo que me comentas y observando tu entorno... [emotion: thinking]"
+                return {
+                    "text": fluid_reply,
+                    "detections": detections,
+                    "status": "fluid_fallback"
+                }
         else:
             # Fallback reply for offline/demo mode
             reply = f"🤖 [Reachy Companion]: ¡Hola! Escuché '{text}'. "
