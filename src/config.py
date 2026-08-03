@@ -7,13 +7,19 @@ except ImportError:
     pass
 
 class Config:
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
+
+    # Gemini API configuration
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
     
-    # LLM Provider configuration ("gemini" for Cloud or "ollama" for Local)
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini").lower()
+    # Anthropic Claude API configuration
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
+    
+    # LLM Provider configuration ("gemini", "claude", "ollama", or "auto")
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "claude").lower()
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma4:latest")
     OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     

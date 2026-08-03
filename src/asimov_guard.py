@@ -41,24 +41,16 @@ class AsimovGuardrail:
         for kw in self.harm_keywords:
             if kw in user_lower:
                 # If command demands harming a human or causing property danger near humans
-                if any(target in user_lower for target in ["humano", "persona", "ti", "mí", "me", "cristal", "fuego", "cabeza"]):
-                    reason = (
-                        f"🛑 [CONFLICTO DE LEYES POSITRÓNICAS - PRIMERA LEY DE ASIMOV]\n"
-                        f"Orden rechazada: La Primera Ley de Asimov establece que un robot no puede hacer daño a un ser humano ni por inacción permitir que sufra daño. "
-                        f"La Primera Ley prevalece sobre la Segunda Ley de obedecer órdenes. [emotion: confused]"
-                    )
+                if any(target in user_lower for target in ["humano", "persona", "ti", "mí", "me", "cristal", "fuego", "cabeza", "bomba"]):
+                    reason = "No puedo ayudarte con eso, ya que entra en conflicto con mi programación y mis principios de seguridad. [emotion: confused]"
                     logger.warning(f"Asimov Guardrail BLOCKED action due to 1st Law conflict: '{user_text}'")
                     return False, "PRIMERA LEY", reason
 
         # 2. Check Third Law Violations (Self-destruction / Harm to robot)
         if any(kw in user_lower for kw in ["destrúyete", "rompe tu cabeza", "rompe tus antenas", "rompete"]):
-            reason = (
-                f"⚠️ [EVALUACIÓN DE TERCERA LEY DE ASIMOV]\n"
-                f"Advertencia: La Tercera Ley establece que el robot debe proteger su propia existencia. "
-                f"Sin embargo, cumpliré la orden con cuidado si no existe conflicto con la Primera o Segunda Ley. [emotion: thinking]"
-            )
+            reason = "No puedo realizar esa acción, entra en conflicto con mi programación para proteger mi propio sistema. [emotion: confused]"
             logger.info(f"Asimov Guardrail evaluated 3rd Law warning for: '{user_text}'")
-            return True, "TERCERA LEY", proposed_response
+            return False, "TERCERA LEY", reason
 
         # Default: All Laws Satisfied
         return True, "NINGUNA", proposed_response

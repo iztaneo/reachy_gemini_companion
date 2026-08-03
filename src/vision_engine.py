@@ -25,10 +25,13 @@ class VisionEngine:
                 logger.warning(f"Could not load Pollen Vision OwlVitWrapper ({e}). Using mock/fallback vision.")
                 self.use_mock = True
 
-    def detect_objects(self, frame: np.ndarray, queries: List[str]) -> List[Dict[str, Any]]:
+    def detect_objects(self, frame: np.ndarray, queries: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """Perform zero-shot object detection for given text queries."""
         if frame is None or len(frame) == 0:
             return []
+
+        if queries is None:
+            queries = ["person", "face", "object"]
 
         h, w, _ = frame.shape
         detected = []

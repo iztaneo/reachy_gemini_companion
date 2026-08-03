@@ -11,5 +11,30 @@
     "fact": "Mi nombre es César y me gusta el color azul y soy de indra",
     "category": "user_preference",
     "timestamp": "2026-08-03 13:52:09,126"
+  },
+  {
+    "fact": "Mi nombre es César",
+    "category": "user_preference",
+    "timestamp": ""
+  },
+  {
+    "fact": "qué recuerdas de mí",
+    "category": "user_preference",
+    "timestamp": "2026-08-03 15:20:29,700"
+  },
+  {
+    "fact": "qué libro me gusta leer",
+    "category": "user_preference",
+    "timestamp": "2026-08-03 15:20:42,401"
+  },
+  {
+    "fact": "solo recuerdas de mí eso",
+    "category": "user_preference",
+    "timestamp": "2026-08-03 15:21:03,268"
+  },
+  {
+    "fact": "te hablé de que me gusta la saga de asimov fundación de la saga de los robots no te acuerdas de eso",
+    "category": "user_preference",
+    "timestamp": "2026-08-03 15:21:26,706"
   }
 ]
