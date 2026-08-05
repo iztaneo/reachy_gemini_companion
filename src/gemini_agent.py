@@ -59,11 +59,26 @@ class GeminiAgent:
         if len(words) >= 3 and not any(w in text.lower() for w in ["hola", "buenos días", "buenas noches"]):
             self.memory.add_memory(f"El usuario comentó: '{text}'", category="conversation")
 
-        # 3. Retrieve relevant long-term memories
+        # 3. Biometric Face Identification & Profile Memory Context
+        known_profiles = self.memory.get_user_profiles()
+        matched_user = None
+        biometric_context = ""
+
+        if frame is not None and self.vision:
+            matched_user, face_encoding, face_box = self.vision.identify_face_in_frame(frame, known_profiles)
+            if matched_user:
+                biometric_context = f"\n[VISIÓN BIOMÉTRICA]: Rostro de '{matched_user}' identificado con éxito frente a la cámara."
+                # Automatically save encoding if new
+                if face_encoding:
+                    self.memory.save_user_profile(matched_user, face_encoding=face_encoding)
+            else:
+                biometric_context = "\n[VISIÓN BIOMÉTRICA]: Hay una persona frente a la cámara. Si aún no sabes su nombre, puedes saludarla y preguntárselo."
+
+        # Retrieve relevant long-term memories
         memories = self.memory.retrieve_relevant_memories(text)
-        memory_context = ""
+        memory_context = biometric_context
         if memories:
-            memory_context = "\n[MEMORIAS DEL USUARIO]:\n" + "\n".join([f"- {m}" for m in memories])
+            memory_context += "\n[MEMORIAS DEL USUARIO]:\n" + "\n".join([f"- {m}" for m in memories])
 
         # 4. Perform computer vision detection with Pollen Vision
         detections = []

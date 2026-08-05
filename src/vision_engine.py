@@ -7,14 +7,17 @@ import numpy as np
 import logging
 from typing import List, Dict, Any, Tuple, Optional
 
+from reachy_gemini_companion.src.face_biometrics import FaceBiometrics
+
 logger = logging.getLogger("VisionEngine")
 
 class VisionEngine:
-    """Vision processing engine integrating Pollen Vision zero-shot detection."""
+    """Vision processing engine integrating Pollen Vision zero-shot detection and Face Biometrics."""
     def __init__(self, use_mock: bool = False):
         self.use_mock = use_mock
         self.owl_vit = None
         self.sam = None
+        self.face_biometrics = FaceBiometrics()
         
         if not use_mock:
             try:
@@ -99,3 +102,27 @@ class VisionEngine:
             cv2.circle(annotated, (cx, cy), 5, (0, 0, 255), -1)
             
         return annotated
+
+    def identify_face_in_frame(self, frame: np.ndarray, known_profiles: Dict[str, Dict[str, Any]]) -> Tuple[Optional[str], List[float], Optional[Tuple[int, int, int, int]]]:
+        """
+        Detect face in frame and match identity against known user profiles.
+        Returns (matched_user_name, face_encoding_vector, face_box).
+        """
+        if frame is None or len(frame) == 0:
+            return None, [], None
+
+        face_boxes = self.face_biometrics.detect_faces(frame)
+        if not face_boxes:
+            return None, [], None
+
+        # Take primary centered face
+        primary_box = face_boxes[0]
+        encoding = self.face_biometrics.compute_face_encoding(frame, primary_box)
+        matched_user, dist = self.face_biometrics.match_face(encoding, known_profiles)
+
+        if matched_user:
+            logger.info(f"Biometric face match identified: '{matched_user}' (Distance: {dist:.3f})")
+        else:
+            logger.info("Face detected, but unknown identity.")
+
+        return matched_user, encoding, primary_box

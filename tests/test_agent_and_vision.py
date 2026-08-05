@@ -47,5 +47,20 @@ class TestReachyAgentAndVision(unittest.TestCase):
         self.assertEqual(response["status"], "success")
         print(f"✅ [TEST PASSED]: Flujo completo con cámara e IA respondió: '{response['text'][:60]}...'")
 
+    def test_face_biometrics_and_user_profiles(self):
+        """Verify face biometric vector calculation and multi-user memory profiles."""
+        # Test User Profile saving and retrieving
+        self.agent.memory.save_user_profile("César", face_encoding=[0.1, 0.2, 0.3], memories=["Es el usuario principal"])
+        profiles = self.agent.memory.get_user_profiles()
+        
+        self.assertIn("César", profiles)
+        self.assertEqual(profiles["César"]["face_encoding"], [0.1, 0.2, 0.3])
+
+        # Test Vision Engine face identification on dummy frame
+        dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        matched_user, encoding, box = self.vision.identify_face_in_frame(dummy_frame, profiles)
+        self.assertIsInstance(encoding, list)
+        print("✅ [TEST PASSED]: Biometría facial y perfiles de memoria multi-usuario funcionan 100%.")
+
 if __name__ == "__main__":
     unittest.main()

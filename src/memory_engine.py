@@ -103,3 +103,57 @@ class MemoryEngine:
     def get_all_memories(self) -> List[Dict[str, Any]]:
         """Return all stored memories."""
         return self.memories
+
+    # ----------------------------------------------------------------------
+    # Multi-User Profile & Biometric Face Encoding Extensions
+    # ----------------------------------------------------------------------
+    def get_user_profiles(self) -> Dict[str, Dict[str, Any]]:
+        """Retrieve dict of all known user profiles with their biometric face encodings."""
+        profiles = {}
+        for mem in self.memories:
+            if mem.get("category") == "user_profile":
+                user_name = mem.get("user_name")
+                if user_name:
+                    profiles[user_name] = {
+                        "face_encoding": mem.get("face_encoding", []),
+                        "memories": mem.get("user_memories", [])
+                    }
+        
+        # Ensure default César profile exists if empty
+        if not profiles:
+            profiles["César"] = {
+                "face_encoding": [],
+                "memories": ["Al usuario César le apasiona la saga de Fundación, la robótica y trabaja en Indra."]
+            }
+            self.save_user_profile("César", face_encoding=[], memories=["Al usuario César le apasiona la saga de Fundación, la robótica y trabaja en Indra."])
+            
+        return profiles
+
+    def save_user_profile(self, user_name: str, face_encoding: Optional[List[float]] = None, memories: Optional[List[str]] = None) -> bool:
+        """Create or update a user profile with face encoding and personal facts."""
+        cleaned_name = user_name.strip()
+        if not cleaned_name:
+            return False
+
+        updated = False
+        for mem in self.memories:
+            if mem.get("category") == "user_profile" and mem.get("user_name", "").lower() == cleaned_name.lower():
+                if face_encoding is not None:
+                    mem["face_encoding"] = face_encoding
+                if memories is not None:
+                    mem["user_memories"] = memories
+                updated = True
+                break
+
+        if not updated:
+            new_profile = {
+                "category": "user_profile",
+                "user_name": cleaned_name,
+                "face_encoding": face_encoding or [],
+                "user_memories": memories or [f"Usuario registrado: {cleaned_name}"]
+            }
+            self.memories.append(new_profile)
+
+        self._save_memories()
+        return True
+

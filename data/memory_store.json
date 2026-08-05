@@ -36,5 +36,17 @@
     "fact": "te hablé de que me gusta la saga de asimov fundación de la saga de los robots no te acuerdas de eso",
     "category": "user_preference",
     "timestamp": "2026-08-03 15:21:26,706"
+  },
+  {
+    "category": "user_profile",
+    "user_name": "César",
+    "face_encoding": [
+      0.1,
+      0.2,
+      0.3
+    ],
+    "user_memories": [
+      "Es el usuario principal"
+    ]
   }
 ]
