@@ -62,5 +62,29 @@ class TestReachyAgentAndVision(unittest.TestCase):
         self.assertIsInstance(encoding, list)
         print("✅ [TEST PASSED]: Biometría facial y perfiles de memoria multi-usuario funcionan 100%.")
 
+    def test_advanced_5_features(self):
+        """Verify Hand Gestures, Wake Word, Document RAG, and Vocal Sentiment modules."""
+        # 1. Test Hand Gesture Recognizer
+        dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        gesture, conf, g_box = self.agent.hand_gestures.detect_hand_gesture(dummy_frame)
+        self.assertIsNone(gesture)
+
+        # 2. Test Wake Word Detector
+        is_triggered, cmd = self.agent.wake_word.check_wake_word("Oye Reachy cuéntame un chiste")
+        self.assertTrue(is_triggered)
+        self.assertEqual(cmd, "cuéntame un chiste")
+
+        # 3. Test Document RAG Assistant
+        self.agent.document_rag.add_document("Datasheet TB6612FNG", "El controlador opera a 1.2A continuo.")
+        docs = self.agent.document_rag.query_documents("TB6612FNG")
+        self.assertTrue(len(docs) > 0)
+        self.assertIn("TB6612FNG", docs[0])
+
+        # 4. Test Vocal Sentiment Analyzer
+        sentiment_info = self.agent.vocal_sentiment.analyze_text_sentiment("¡Excelente trabajo genial!")
+        self.assertEqual(sentiment_info["sentiment"], "excited")
+        self.assertGreater(sentiment_info["antenna_speed"], 1.0)
+        print("✅ [TEST PASSED]: Las 5 Mejoras Avanzadas (Gestos, WakeWord, RAG Documentos y Sentimiento) funcionan 100%.")
+
 if __name__ == "__main__":
     unittest.main()

@@ -20,31 +20,46 @@ class FaceBiometrics:
 
     def __init__(self, tolerance: float = 0.6):
         self.tolerance = tolerance
-        self.face_cascade = None
-        if cv2 is not None:
-            try:
-                cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-                if os.path.exists(cascade_path):
-                    self.face_cascade = cv2.CascadeClassifier(cascade_path)
-            except Exception as e:
-                logger.warning(f"Could not load OpenCV face cascade: {e}")
+        self.yunet_detector = None
+        self.model_path = os.path.join("data", "face_detection_yunet_2023mar.onnx")
+        self._ensure_yunet_model()
 
-    def detect_faces(self, frame: np.ndarray) -> List[Tuple[int, int, int, int]]:
-        """Detect bounding boxes (x, y, w, h) for faces in an BGR image frame."""
-        if frame is None or cv2 is None or self.face_cascade is None:
-            return []
+    def _ensure_yunet_model(self):
+        if cv2 is None or not hasattr(cv2, "FaceDetectorYN"):
+            return
 
         try:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = self.face_cascade.detectMultiScale(
-                gray,
-                scaleFactor=1.1,
-                minNeighbors=5,
-                minSize=(60, 60)
-            )
-            return [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in faces]
+            os.makedirs("data", exist_ok=True)
+            if not os.path.exists(self.model_path):
+                import urllib.request
+                url = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+                logger.info("Downloading YuNet ONNX Face Detector model...")
+                urllib.request.urlretrieve(url, self.model_path)
+                logger.info("Downloaded YuNet model successfully!")
         except Exception as e:
-            logger.error(f"Error detecting faces: {e}")
+            logger.warning(f"Could not download YuNet model: {e}")
+
+    def detect_faces(self, frame: np.ndarray) -> List[Tuple[int, int, int, int]]:
+        """Detect bounding boxes (x, y, w, h) for faces using YuNet Deep Learning model."""
+        if frame is None or cv2 is None or not hasattr(cv2, "FaceDetectorYN"):
+            return []
+
+        h, w = frame.shape[:2]
+
+        try:
+            detector = cv2.FaceDetectorYN.create(self.model_path, "", (w, h), score_threshold=0.6)
+            _, faces = detector.detect(frame)
+            if faces is None or len(faces) == 0:
+                return []
+
+            results = []
+            for face in faces:
+                box = face[0:4].astype(int)
+                x, y, fw, fh = box
+                results.append((int(x), int(y), int(fw), int(fh)))
+            return results
+        except Exception as e:
+            logger.error(f"Error detecting faces with YuNet: {e}")
             return []
 
     def compute_face_encoding(self, frame: np.ndarray, face_box: Tuple[int, int, int, int]) -> List[float]:

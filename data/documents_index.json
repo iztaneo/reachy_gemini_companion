@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Datasheet Motor Controller TB6612FNG",
+    "content": "El TB6612FNG opera entre 2.5V y 13.5V DC, con corriente continua de 1.2A por canal (pico 3.2A). Pines clave: VM (Alimentación motor), VCC (Lógica 5V), PWMA/PWMB (Velocidad PWM), AIN1/AIN2 (Dirección motor A), STBY (Habilitación)."
+  },
+  {
+    "title": "Manual de Cinemática Reachy Mini Lite",
+    "content": "Reachy Mini Lite utiliza 2 servomotores para las antenas (grados de -45° a +60°) y un cuello cinemático de 3 DOF (x, y, z) controlado por el SDK reachy_mini."
+  },
+  {
+    "title": "Datasheet TB6612FNG",
+    "content": "El controlador opera a 1.2A continuo."
+  },
+  {
+    "title": "Datasheet TB6612FNG",
+    "content": "El controlador opera a 1.2A continuo."
+  },
+  {
+    "title": "Datasheet TB6612FNG",
+    "content": "El controlador opera a 1.2A continuo."
+  },
+  {
+    "title": "Datasheet TB6612FNG",
+    "content": "El controlador opera a 1.2A continuo."
+  }
+]

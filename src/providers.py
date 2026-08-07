@@ -80,18 +80,27 @@ class ClaudeProvider(BaseLLMProvider):
 
         messages_payload = []
 
-        # Attach camera frame image if available
+        # Attach camera frame image if available (compressed for fast API payloads)
         if frame is not None and cv2 is not None:
-            _, img_buffer = cv2.imencode('.jpg', frame)
-            img_b64 = base64.b64encode(img_buffer.tobytes()).decode('utf-8')
-            messages_payload.append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/jpeg",
-                    "data": img_b64
-                }
-            })
+            try:
+                h, w = frame.shape[:2]
+                if w > 640 or h > 480:
+                    small_frame = cv2.resize(frame, (640, 480))
+                else:
+                    small_frame = frame
+                ret, img_buffer = cv2.imencode('.jpg', small_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                if ret and img_buffer is not None:
+                    img_b64 = base64.b64encode(img_buffer.tobytes()).decode('utf-8')
+                    messages_payload.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/jpeg",
+                            "data": img_b64
+                        }
+                    })
+            except Exception as ex:
+                logger.error(f"Error encoding frame image for Claude API payload: {ex}")
 
         messages_payload.append({
             "type": "text",

@@ -107,15 +107,16 @@ class RobotController:
             except Exception as e:
                 logger.warning(f"Could not read frame from physical Reachy camera: {e}")
 
-        # 2. Laptop Webcam / Local OpenCV Camera
+        # 2. Laptop Webcam / Local OpenCV Camera (Probe index 0, 1, 2 for macOS FaceTime HD Cam)
         try:
             import cv2
-            cap = cv2.VideoCapture(0)
-            if cap.isOpened():
-                ret, frame = cap.read()
-                cap.release()
-                if ret and frame is not None:
-                    return frame
+            for idx in [0, 1, 2]:
+                cap = cv2.VideoCapture(idx)
+                if cap.isOpened():
+                    ret, frame = cap.read()
+                    cap.release()
+                    if ret and frame is not None:
+                        return frame
         except Exception as e:
             logger.debug(f"Webcam not available: {e}")
 

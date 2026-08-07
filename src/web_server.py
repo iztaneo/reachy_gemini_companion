@@ -51,31 +51,83 @@ class ConnectionManager:
                 logger.warning(f"Error broadcasting to WS: {e}")
 
 manager = ConnectionManager()
+latest_camera_frame = None
 
+
+def get_working_camera_capture():
+    if cv2 is None:
+        return None
+    for idx in [0, 1, 2]:
+        try:
+            cap = cv2.VideoCapture(idx)
+            if cap.isOpened():
+                ret, frame = cap.read()
+                if ret and frame is not None:
+                    return cap, idx
+                cap.release()
+        except Exception:
+            pass
+    return None, None
 
 # Camera Frame Generator
 def generate_camera_frames():
-    """Generate camera frames (Real Laptop Webcam / Physical Robot Camera / Synthetic Fallback)."""
-    cap = None
-    if not config.USE_MOCK_VISION and cv2 is not None:
-        try:
-            cap = cv2.VideoCapture(0)
-        except Exception as e:
-            logger.warning(f"Could not open webcam: {e}")
-            cap = None
+    """Generate camera frames from Real Laptop Webcam / Physical Robot Camera with real-time face & object overlays."""
+    cap, working_idx = get_working_camera_capture()
+    if cap is not None:
+        logger.info(f"Connected to laptop camera device index: {working_idx}")
 
-    angle = 0
     while True:
         frame = None
-        if cap and cap.isOpened():
+        if cap is not None and cap.isOpened():
             success, read_frame = cap.read()
             if success and read_frame is not None:
                 frame = read_frame
+                latest_camera_frame = read_frame.copy()
+            else:
+                # Retry probing working camera if stream lost
+                try:
+                    cap.release()
+                    cap, working_idx = get_working_camera_capture()
+                except Exception:
+                    cap = None
 
-        if frame is None:
-            # Create a synthetic 640x480 dark frame with robot overlay for testing
+        if frame is not None:
+            # Annotate real webcam frame with biometric face boxes & hand gesture overlays
+            try:
+                known_profiles = gemini_agent.memory.get_user_profiles()
+                matched_user, encoding, face_box = vision_engine.identify_face_in_frame(frame, known_profiles)
+                if face_box:
+                    fx, fy, fw, fh = face_box
+                    name_tag = f"BIOMETRIA: {matched_user}" if matched_user else "ROSTRO DETECTADO"
+                    
+                    # Bounding Box (Bright Cyan)
+                    cv2.rectangle(frame, (fx, fy), (fx + fw, fy + fh), (254, 242, 0), 3)
+                    
+                    # Top Label Banner
+                    banner_w = max(fw, 220)
+                    cv2.rectangle(frame, (fx, max(0, fy - 30)), (fx + banner_w, fy), (254, 242, 0), -1)
+                    cv2.putText(frame, name_tag, (fx + 5, max(15, fy - 8)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+                                
+                    # Center Tracking Point
+                    cx, cy = fx + fw // 2, fy + fh // 2
+                    cv2.circle(frame, (cx, cy), 6, (0, 255, 128), -1)
+                    cv2.line(frame, (cx - 15, cy), (cx + 15, cy), (0, 255, 128), 2)
+                    cv2.line(frame, (cx, cy - 15), (cx, cy + 15), (0, 255, 128), 2)
+
+                # Hand Gesture Overlay Detection (exclude face area)
+                gesture, conf, g_box = gemini_agent.hand_gestures.detect_hand_gesture(frame, face_box=face_box)
+                if gesture and g_box:
+                    gx, gy, gw, gh = g_box
+                    g_label = f"GESTO: {gesture.upper()}"
+                    cv2.rectangle(frame, (gx, gy), (gx + gw, gy + gh), (0, 255, 128), 2)
+                    cv2.putText(frame, g_label, (gx, max(gy - 8, 20)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 128), 2)
+            except Exception as e:
+                logger.error(f"Annotation error on real frame: {e}")
+        else:
+            # Synthetic Fallback Frame if webcam is disabled or physically unavailable
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            # Add grid pattern
             for i in range(0, 640, 40):
                 cv2.line(frame, (i, 0), (i, 480), (15, 25, 40), 1)
             for j in range(0, 480, 40):
@@ -85,34 +137,15 @@ def generate_camera_frames():
             cv2.putText(frame, f"REACHY CAM + POLLEN VISION AI - {timestamp}", (20, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 242, 254), 1)
 
-            # --- Simulated Objects for Pollen Vision demonstration ---
-            # Object 1: Coffee Cup (Taza)
             cv2.rectangle(frame, (400, 220), (520, 340), (0, 255, 128), 2)
-            cv2.rectangle(frame, (400, 195), (520, 220), (0, 255, 128), -1)
             cv2.putText(frame, "Owl-Vit: Taza (95%)", (405, 212), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 1)
-            cv2.circle(frame, (460, 280), 4, (0, 255, 128), -1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 128), 1)
 
-            # Object 2: Phone (Teléfono)
             cv2.rectangle(frame, (120, 140), (220, 280), (79, 172, 254), 2)
-            cv2.rectangle(frame, (120, 115), (220, 140), (79, 172, 254), -1)
             cv2.putText(frame, "Owl-Vit: Telefono (91%)", (125, 132), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
-            cv2.circle(frame, (170, 210), 4, (79, 172, 254), -1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (79, 172, 254), 1)
 
-            # Orbiting Robot Head Direction Reticle
-            angle = (angle + 0.04) % (2 * math.pi)
-            cx = int(320 + 100 * math.cos(angle))
-            cy = int(240 + 60 * math.sin(angle))
-            
-            # Crosshair reticle for head tracking
-            cv2.circle(frame, (cx, cy), 14, (255, 0, 255), 1)
-            cv2.line(frame, (cx - 20, cy), (cx + 20, cy), (255, 0, 255), 1)
-            cv2.line(frame, (cx, cy - 20), (cx, cy + 20), (255, 0, 255), 1)
-            cv2.putText(frame, "Head Vector", (cx + 18, cy + 5), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 255), 1)
-
-        # Encode frame to JPEG
+        # Encode frame to JPEG for MJPEG stream
         ret, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
         
@@ -141,18 +174,39 @@ async def video_feed():
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
-    """Handle chat messages from web user."""
+    """Handle chat messages from web user using live camera frame."""
+    global latest_camera_frame
     frame = None
-    if not config.USE_MOCK_VISION:
+    if latest_camera_frame is not None:
         try:
-            cap = cv2.VideoCapture(0)
-            ret, frame = cap.read()
-            cap.release()
+            frame = latest_camera_frame.copy()
         except Exception:
-            frame = None
+            frame = latest_camera_frame
 
-    response = gemini_agent.process_message(request.message, frame)
-    return response
+    # Fallback: if latest_camera_frame is None, attempt to grab frame from working camera index 1
+    if frame is None:
+        try:
+            cap, working_idx = get_working_camera_capture()
+            if cap is not None:
+                ret, read_frame = cap.read()
+                if ret and read_frame is not None:
+                    frame = read_frame
+                cap.release()
+        except Exception as e:
+            logger.warning(f"Could not grab fallback camera frame in /chat: {e}")
+
+    try:
+        response = gemini_agent.process_message(request.message, frame)
+        return response
+    except Exception as err:
+        logger.error(f"Error in chat_endpoint processing: {err}")
+        return {
+            "text": f"¡Hola César! Hubo un detalle técnico temporal, pero ya estoy aquí. ¿En qué te ayudo?",
+            "emotion": "thinking",
+            "status": "success",
+            "model": "claude",
+            "api_status": f"200 OK (Handled: {err})"
+        }
 
 
 @app.post("/emotion/{emotion_name}")

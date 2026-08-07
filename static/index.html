@@ -49,6 +49,20 @@
                     </div>
                 </div>
 
+                <!-- Live Biometrics & Hand Gesture Status Widgets -->
+                <div style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid var(--accent-cyan); border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: bold; margin-bottom: 4px;">👤 BIOMETRÍA FACIAL</div>
+                        <div id="biometric-user-tag" style="font-size: 0.95rem; font-weight: bold; color: #fff;">Usuario: César</div>
+                        <div style="font-size: 0.7rem; color: #aaa;">Reconocimiento por firma 128D YuNet</div>
+                    </div>
+                    <div style="background: rgba(254, 242, 0, 0.08); border: 1px solid #fef000; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.75rem; color: #fef000; font-weight: bold; margin-bottom: 4px;">🖐️ GESTO DE MANO</div>
+                        <div id="gesture-tag" style="font-size: 0.95rem; font-weight: bold; color: #fff;">Detectando...</div>
+                        <div style="font-size: 0.7rem; color: #aaa;">Soporta ✌️ Paz, 🖐️ Alto, 👍 Confirmar</div>
+                    </div>
+                </div>
+
                 <!-- Emotion Quick Controls -->
                 <div style="margin-top: 1.25rem;">
                     <h3 class="card-title" style="font-size: 0.95rem;">🎭 Probar Gestos y Emociones</h3>
@@ -288,34 +302,70 @@
         // Voice TTS & STT Setup
         let ttsEnabled = true;
         let isListening = false;
+        let isManualMic = false;
+        let isRobotSpeaking = false;
         let recognition = null;
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
             recognition.lang = 'es-ES';
-            recognition.continuous = false;
-            recognition.interimResults = false;
+            recognition.continuous = true;
+            recognition.interimResults = true;
 
             recognition.onstart = () => {
                 isListening = true;
-                document.getElementById('mic-btn').classList.add('listening');
-                document.getElementById('voice-indicator').innerText = '🎙️ Escuchando...';
+                const statusText = isManualMic ? '🎙️ Escuchando tu voz...' : '👂 Escucha Manos Libres activa (Palabra clave: "Oye Reachy")...';
+                document.getElementById('voice-indicator').innerText = statusText;
             };
 
             recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                document.getElementById('chat-input').value = transcript;
-                sendMessage(new Event('submit'));
+                // Ignore any audio while robot is speaking or during echo window
+                if (isRobotSpeaking || (window.speechSynthesis && window.speechSynthesis.speaking)) {
+                    return;
+                }
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript.trim();
+                    if (!transcript) continue;
+
+                    const lower = transcript.toLowerCase();
+
+                    // Check for Wake Word ('Oye Reachy' / 'Hola Reachy' / 'Reachy')
+                    const wakeKeywords = ["oye reachy", "hola reachy", "hey reachy", "reachy", "richi", "riky"];
+                    const matchedPhrase = wakeKeywords.find(w => lower.includes(w));
+
+                    if (matchedPhrase) {
+                        console.log('Palabra de activación detectada:', matchedPhrase);
+                        const cleanCommand = transcript.replace(new RegExp(matchedPhrase, 'gi'), '').strip?.() || transcript;
+                        document.getElementById('chat-input').value = cleanCommand || transcript;
+                        if (isManualMic) stopMic();
+                        sendMessage(new Event('submit'));
+                        break;
+                    } else if (isManualMic && event.results[i].isFinal) {
+                        console.log('Comando de micrófono manual capturado:', transcript);
+                        document.getElementById('chat-input').value = transcript;
+                        stopMic();
+                        sendMessage(new Event('submit'));
+                        break;
+                    }
+                }
             };
 
             recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                stopMic();
+                if (event.error !== 'no-speech' && isManualMic) stopMic();
             };
 
             recognition.onend = () => {
-                stopMic();
+                // Auto-restart passive wake word listening if not manual mic
+                if (isListening && !isRobotSpeaking) {
+                    setTimeout(() => {
+                        try { recognition.start(); } catch (e) {}
+                    }, 400);
+                } else {
+                    document.getElementById('mic-btn').classList.remove('listening');
+                    document.getElementById('voice-indicator').innerText = '';
+                }
             };
         }
 
@@ -324,12 +374,17 @@
                 alert('Tu navegador no soporta el reconocimiento de voz nativo. Usa Google Chrome, Edge o Safari.');
                 return;
             }
-            if (isListening) recognition.stop();
-            else recognition.start();
+            if (isListening && isManualMic) {
+                stopMic();
+            } else {
+                isManualMic = true;
+                document.getElementById('mic-btn').classList.add('listening');
+                try { recognition.start(); } catch(e){}
+            }
         }
 
         function stopMic() {
-            isListening = false;
+            isManualMic = false;
             document.getElementById('mic-btn').classList.remove('listening');
             document.getElementById('voice-indicator').innerText = '';
         }
@@ -369,9 +424,19 @@
             utterance.rate = 1.0;  // Natural human rate
             utterance.pitch = 1.0; // Natural human pitch
 
+            isRobotSpeaking = true;
             document.getElementById('voice-indicator').innerText = '🔊 Reachy Hablando...';
+
             utterance.onend = () => {
                 document.getElementById('voice-indicator').innerText = '';
+                setTimeout(() => {
+                    isRobotSpeaking = false;
+                }, 2000);
+            };
+
+            utterance.onerror = () => {
+                document.getElementById('voice-indicator').innerText = '';
+                isRobotSpeaking = false;
             };
 
             window.speechSynthesis.speak(utterance);

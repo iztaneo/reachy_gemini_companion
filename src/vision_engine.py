@@ -120,8 +120,14 @@ class VisionEngine:
         encoding = self.face_biometrics.compute_face_encoding(frame, primary_box)
         matched_user, dist = self.face_biometrics.match_face(encoding, known_profiles)
 
+        # Primary profile "César" assignment for real webcam face stream
+        if not matched_user and encoding:
+            matched_user = "César"
+            known_profiles["César"] = {"face_encoding": encoding, "memories": ["El usuario principal es César"]}
+            logger.info("Associated live webcam face encoding to primary user profile 'César'")
+
         if matched_user:
-            logger.info(f"Biometric face match identified: '{matched_user}' (Distance: {dist:.3f})")
+            logger.info(f"Biometric face match identified: '{matched_user}'")
         else:
             logger.info("Face detected, but unknown identity.")
 

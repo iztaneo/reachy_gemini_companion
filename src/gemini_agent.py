@@ -22,6 +22,11 @@ from reachy_gemini_companion.src.memory_engine import MemoryEngine
 from reachy_gemini_companion.src.asimov_guard import AsimovGuardrail
 from reachy_gemini_companion.src.providers import LLMProviderFactory
 
+from reachy_gemini_companion.src.hand_gestures import HandGestureRecognizer
+from reachy_gemini_companion.src.wake_word import WakeWordDetector
+from reachy_gemini_companion.src.document_rag import DocumentRAGAssistant
+from reachy_gemini_companion.src.vocal_sentiment import VocalSentimentAnalyzer
+
 logger = logging.getLogger("GeminiAgent")
 
 SYSTEM_INSTRUCTION = f"""
@@ -44,6 +49,10 @@ class GeminiAgent:
         self.memory = MemoryEngine()
         self.guardrail = AsimovGuardrail()
         self.provider = LLMProviderFactory.get_provider(config)
+        self.hand_gestures = HandGestureRecognizer()
+        self.wake_word = WakeWordDetector()
+        self.document_rag = DocumentRAGAssistant()
+        self.vocal_sentiment = VocalSentimentAnalyzer()
 
     def process_message(self, text: str, frame=None) -> dict:
         """Process user text & camera frame using the active LLM Provider (Gemini, Claude, or Ollama)."""
@@ -59,26 +68,45 @@ class GeminiAgent:
         if len(words) >= 3 and not any(w in text.lower() for w in ["hola", "buenos días", "buenas noches"]):
             self.memory.add_memory(f"El usuario comentó: '{text}'", category="conversation")
 
-        # 3. Biometric Face Identification & Profile Memory Context
+        # 3. Biometric Face Identification & Hand Gestures Context
         known_profiles = self.memory.get_user_profiles()
         matched_user = None
         biometric_context = ""
+        gesture_context = ""
 
         if frame is not None and self.vision:
             matched_user, face_encoding, face_box = self.vision.identify_face_in_frame(frame, known_profiles)
             if matched_user:
                 biometric_context = f"\n[VISIÓN BIOMÉTRICA]: Rostro de '{matched_user}' identificado con éxito frente a la cámara."
-                # Automatically save encoding if new
                 if face_encoding:
                     self.memory.save_user_profile(matched_user, face_encoding=face_encoding)
-            else:
-                biometric_context = "\n[VISIÓN BIOMÉTRICA]: Hay una persona frente a la cámara. Si aún no sabes su nombre, puedes saludarla y preguntárselo."
+            elif face_box and face_encoding:
+                # Auto-associate detected face to primary user César if encoding was empty
+                matched_user = "César"
+                self.memory.save_user_profile("César", face_encoding=face_encoding)
+                biometric_context = "\n[VISIÓN BIOMÉTRICA]: Rostro de 'César' identificado y registrado frente a la cámara."
+            elif face_box:
+                biometric_context = "\n[VISIÓN BIOMÉTRICA]: Hay una persona frente a la cámara observándote."
+
+            # Hand Gesture Detection (excluding face region)
+            gesture, conf, g_box = self.hand_gestures.detect_hand_gesture(frame, face_box=face_box)
+            if gesture:
+                gesture_context = f"\n[VISIÓN DE GESTO DE MANO EN TIEMPO REAL]: El usuario está haciendo la seña/gesto con la mano: '{gesture}' (ej. victory=✌️ paz/saludo, palm=🖐️ palma/alto, thumbs_up=👍 pulgar arriba). Respóndele o reacciona al gesto si aplica."
+
+        # Document RAG Assistant Query
+        doc_rag_facts = self.document_rag.query_documents(text)
+        doc_context = ""
+        if doc_rag_facts:
+            doc_context = "\n[ASISTENTE TÉCNICO & ESQUEMÁTICOS RAG]:\n" + "\n".join(doc_rag_facts)
 
         # Retrieve relevant long-term memories
         memories = self.memory.retrieve_relevant_memories(text)
-        memory_context = biometric_context
+        memory_context = biometric_context + gesture_context + doc_context
         if memories:
             memory_context += "\n[MEMORIAS DEL USUARIO]:\n" + "\n".join([f"- {m}" for m in memories])
+
+        # Analyze Vocal Sentiment
+        sentiment_info = self.vocal_sentiment.analyze_text_sentiment(text)
 
         # 4. Perform computer vision detection with Pollen Vision
         detections = []
