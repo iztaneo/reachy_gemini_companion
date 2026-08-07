@@ -26,6 +26,7 @@ from reachy_gemini_companion.src.hand_gestures import HandGestureRecognizer
 from reachy_gemini_companion.src.wake_word import WakeWordDetector
 from reachy_gemini_companion.src.document_rag import DocumentRAGAssistant
 from reachy_gemini_companion.src.vocal_sentiment import VocalSentimentAnalyzer
+from reachy_gemini_companion.src.autonomous_agent import AutonomousAgent
 
 logger = logging.getLogger("GeminiAgent")
 
@@ -53,10 +54,18 @@ class GeminiAgent:
         self.wake_word = WakeWordDetector()
         self.document_rag = DocumentRAGAssistant()
         self.vocal_sentiment = VocalSentimentAnalyzer()
+        self.autonomous_agent = AutonomousAgent()
 
     def process_message(self, text: str, frame=None) -> dict:
-        """Process user text & camera frame using the active LLM Provider (Gemini, Claude, or Ollama)."""
+        """Process user text & camera frame using active LLM Provider or Autonomous Tool Calling."""
         logger.info(f"User message: '{text}'")
+
+        # 1. Check Autonomous Agent Intent (Claw-style Tools: Email, Code Generator, Shell Runner)
+        auto_res = self.autonomous_agent.process_intent(text)
+        if auto_res is not None:
+            if self.robot and "emotion" in auto_res:
+                self.robot.express_emotion(auto_res["emotion"])
+            return auto_res
 
         # 1. Express initial thinking emotion on robot motors/simulator
         if self.robot:

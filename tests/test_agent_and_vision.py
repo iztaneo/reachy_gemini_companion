@@ -86,5 +86,27 @@ class TestReachyAgentAndVision(unittest.TestCase):
         self.assertGreater(sentiment_info["antenna_speed"], 1.0)
         print("✅ [TEST PASSED]: Las 5 Mejoras Avanzadas (Gestos, WakeWord, RAG Documentos y Sentimiento) funcionan 100%.")
 
+    def test_claw_autonomous_agent(self):
+        """Test Claw-style Autonomous Agent Tools (Email, Code Generator, Shell Runner)."""
+        # Test Email Reading Tool
+        res_email = self.agent.process_message("Reachy, revisa mis correos nuevos por favor")
+        self.assertIn("action", res_email)
+        self.assertEqual(res_email["action"], "read_emails")
+        self.assertIn("César", res_email["text"])
+
+        # Test Code Generator Tool
+        res_code = self.agent.process_message("Reachy, crea un proyecto de codigo con una api de motores")
+        self.assertIn("action", res_code)
+        self.assertEqual(res_code["action"], "generate_code")
+        self.assertIn("api_motores_reachy", res_code["text"])
+
+        # Test Email Sending Tool
+        res_send = self.agent.process_message("Reachy, envia un correo a Pedro confirmando la junta")
+        self.assertIn("action", res_send)
+        self.assertEqual(res_send["action"], "send_email")
+        self.assertIn("enviado exitosamente", res_send["text"])
+
+        print("✅ [TEST PASSED]: Herramientas Autónomas estilo Claw (Lectura/Envío Correo, Generador Código) funcionan 100%.")
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "msg-101",
+    "from": "pedro.robotics@indra.es",
+    "subject": "Propuesta de Robótica Industrial Reachy",
+    "body": "Hola César, ya revisamos la arquitectura en microservicios NATS para la Jetson Orin NX. Quedó excelente. Nos vemos en la junta de mañana a las 10 AM.",
+    "unread": false,
+    "date": "2026-08-07 14:00"
+  },
+  {
+    "id": "msg-102",
+    "from": "notificaciones@github.com",
+    "subject": "Build Sucessful - reachy_industrial_architecture",
+    "body": "Your automated test suite run_all_tests.sh passed 100% of integration tests (8/8 green).",
+    "unread": false,
+    "date": "2026-08-07 14:30"
+  },
+  {
+    "id": "msg-102",
+    "to": "pedro.robotics@indra.es",
+    "subject": "Confirmación de reunión Reachy",
+    "body": "Hola, confirmando el seguimiento solicitado por César en la conversación actual.",
+    "date": "2026-08-07 16:30",
+    "type": "sent"
+  }
+]
