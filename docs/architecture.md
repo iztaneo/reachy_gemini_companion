@@ -58,3 +58,5 @@ Este documento describe la arquitectura modular del sistema **Reachy Gemini Comp
    - Clasificador de gestos de manos (✌️ Paz/Saludo, 🖐️ Palma/Alto, 👍 Confirmar).
 6. **`src/autonomous_agent.py` & `src/tools/`**:
    - Agente autónomo estilo Claw equipado con herramientas para interacción con correo electrónico, generación de proyectos de código multi-archivo y ejecución de pruebas de terminal.
+7. **`src/skills_engine.py` & `skills/`**:
+   - Repositorio modular de habilidades e instrucciones expertas (`skills/<nombre>/SKILL.md`). Incluye autodetección dinámica de roles basándose en la conversación y auto-generación física de nuevos skills.

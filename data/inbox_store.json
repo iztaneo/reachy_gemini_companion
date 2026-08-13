@@ -21,6 +21,33 @@
     "subject": "Confirmación de reunión Reachy",
     "body": "Hola, confirmando el seguimiento solicitado por César en la conversación actual.",
     "date": "2026-08-07 16:30",
+    "type": "sent",
+    "unread": false
+  },
+  {
+    "id": "msg-103",
+    "to": "pedro.robotics@indra.es",
+    "subject": "Confirmación de reunión Reachy",
+    "body": "Hola, confirmando el seguimiento solicitado por César en la conversación actual.",
+    "date": "2026-08-07 16:30",
+    "type": "sent",
+    "unread": false
+  },
+  {
+    "id": "msg-104",
+    "to": "pedro.robotics@indra.es",
+    "subject": "Confirmación de reunión Reachy",
+    "body": "Hola, confirmando el seguimiento solicitado por César en la conversación actual.",
+    "date": "2026-08-07 16:30",
+    "type": "sent",
+    "unread": false
+  },
+  {
+    "id": "msg-105",
+    "to": "pedro.robotics@indra.es",
+    "subject": "Confirmación de reunión Reachy",
+    "body": "Hola, confirmando el seguimiento solicitado por César en la conversación actual.",
+    "date": "2026-08-07 16:30",
     "type": "sent"
   }
 ]

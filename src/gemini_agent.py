@@ -27,6 +27,7 @@ from reachy_gemini_companion.src.wake_word import WakeWordDetector
 from reachy_gemini_companion.src.document_rag import DocumentRAGAssistant
 from reachy_gemini_companion.src.vocal_sentiment import VocalSentimentAnalyzer
 from reachy_gemini_companion.src.autonomous_agent import AutonomousAgent
+from reachy_gemini_companion.src.skills_engine import SkillsEngine
 
 logger = logging.getLogger("GeminiAgent")
 
@@ -55,6 +56,7 @@ class GeminiAgent:
         self.document_rag = DocumentRAGAssistant()
         self.vocal_sentiment = VocalSentimentAnalyzer()
         self.autonomous_agent = AutonomousAgent()
+        self.skills_engine = SkillsEngine()
 
     def process_message(self, text: str, frame=None) -> dict:
         """Process user text & camera frame using active LLM Provider or Autonomous Tool Calling."""
@@ -126,10 +128,16 @@ class GeminiAgent:
                 norm_x, norm_y = target["norm_center"]
                 self.robot.look_at(x=norm_x * 20, y=norm_y * 20, z=0)
 
-        # 5. UNIFIED MULTIMODAL INFERENCE ACROSS ANY LLM PROVIDER
+        # 5. AUTO-DETECT ACTIVE EXPERT SKILL FROM CONVERSATION
+        active_skill = self.skills_engine.auto_detect_skill(text)
+        active_system_instruction = SYSTEM_INSTRUCTION
+        if active_skill:
+            active_system_instruction += f"\n\n[ROL Y HABILIDAD EXPERTA AUTODETECTADA: '{active_skill['name']}']\n{active_skill['system_prompt']}"
+
+        # 6. UNIFIED MULTIMODAL INFERENCE ACROSS ANY LLM PROVIDER
         res = self.provider.generate(
             prompt=text,
-            system_instruction=SYSTEM_INSTRUCTION,
+            system_instruction=active_system_instruction,
             memory_context=memory_context,
             frame=frame,
             detections=detections

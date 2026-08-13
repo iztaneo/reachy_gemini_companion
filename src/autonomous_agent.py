@@ -34,8 +34,11 @@ class AutonomousAgent:
                 summary = "César, revisé tu bandeja de entrada y no tienes correos no leídos."
             else:
                 summary = f"César, tienes {len(unread)} correo(s) nuevo(s):\n"
-                for idx, email in enumerate(unread, 1):
-                    summary += f"{idx}. De: {email['from']} | Asunto: {email['subject']}\n   Resumen: {email['body'][:120]}...\n"
+                for idx, email_item in enumerate(unread, 1):
+                    sender = email_item.get('from', email_item.get('to', 'Desconocido'))
+                    subj = email_item.get('subject', 'Sin asunto')
+                    body_snippet = email_item.get('body', '')[:120]
+                    summary += f"{idx}. De: {sender} | Asunto: {subj}\n   Resumen: {body_snippet}...\n"
 
             return {
                 "action": "read_emails",
@@ -86,6 +89,53 @@ class AutonomousAgent:
                 "result": msg,
                 "text": f"¡Hecho César! {msg}",
                 "emotion": "excited"
+            }
+
+        # 4. Terminal Shell Command Execution Intent
+        if any(w in prompt_lower for w in ["ejecuta el comando", "corre en la terminal", "ejecuta en la terminal", "comando de terminal", "terminal", "espacio en disco", "listar archivos"]):
+            cmd = "df -h"
+            if "archivos" in prompt_lower or "listar" in prompt_lower:
+                cmd = "ls -la"
+            elif "disco" in prompt_lower or "espacio" in prompt_lower:
+                cmd = "df -h"
+            elif "memoria" in prompt_lower or "procesos" in prompt_lower:
+                cmd = "top -l 1 | head -n 10"
+
+            ok, out = self.shell_runner.run_command(cmd)
+            return {
+                "action": "execute_shell",
+                "result": out,
+                "text": f"¡Listo César! Ejecuté el comando `{cmd}` en tu Mac. Resultado:\n{out[:250]}",
+                "emotion": "thinking"
+            }
+
+        # 5. Auto-Generation of New Skills Intent
+        if any(w in prompt_lower for w in ["crea un skill", "crea una habilidad", "genera un skill", "genera una habilidad", "nuevo skill"]):
+            # Extract skill name from prompt or default to data-analyst
+            skill_name = "data-analyst"
+            if "pandas" in prompt_lower or "datos" in prompt_lower or "data" in prompt_lower:
+                skill_name = "data-analyst"
+            elif "vision" in prompt_lower or "imagen" in prompt_lower:
+                skill_name = "vision-expert"
+
+            description = f"Skill auto-generado por Reachy para procesamiento especializado de {skill_name}."
+            keywords = ["datos", "pandas", "analisis", "tabla", "csv", "grafico", skill_name]
+            system_prompt = (
+                f"# Skill Auto-Generado: {skill_name} 📊\n\n"
+                f"## Rol y Comportamiento\n"
+                f"Eres un Analista Experto en {skill_name}.\n"
+                f"Proporcionas respuestas analíticas, estructuradas y con código limpio en Python."
+            )
+
+            from reachy_gemini_companion.src.skills_engine import SkillsEngine
+            skills_engine = SkillsEngine()
+            ok, msg = skills_engine.create_skill(skill_name, description, keywords, system_prompt)
+
+            return {
+                "action": "create_skill",
+                "result": msg,
+                "text": f"¡Hecho César! {msg}",
+                "emotion": "surprised"
             }
 
         return None

@@ -108,5 +108,28 @@ class TestReachyAgentAndVision(unittest.TestCase):
 
         print("✅ [TEST PASSED]: Herramientas Autónomas estilo Claw (Lectura/Envío Correo, Generador Código) funcionan 100%.")
 
+    def test_skills_engine_auto_detection_and_generation(self):
+        """Test SkillsEngine auto-detection from conversation and dynamic skill auto-generation."""
+        # 1. Test Auto-Detection of code-auditor skill
+        skill_detected = self.agent.skills_engine.auto_detect_skill("Tengo un error de sintaxis en mi script de Python con FastAPI")
+        self.assertIsNotNone(skill_detected)
+        self.assertEqual(skill_detected["name"], "code-auditor")
+
+        # 2. Test Auto-Detection of system-sysadmin skill
+        sysadmin_skill = self.agent.skills_engine.auto_detect_skill("Revisa la memoria y uso de disco de la laptop con un comando de terminal zsh")
+        self.assertIsNotNone(sysadmin_skill)
+        self.assertEqual(sysadmin_skill["name"], "system-sysadmin")
+
+        # 3. Test Auto-Generation of a brand new skill (create_skill)
+        ok, msg = self.agent.skills_engine.create_skill(
+            name="test-automation",
+            description="Skill de automatización de pruebas unitarias",
+            keywords=["unittest", "pytest", "test", "automatizacion"],
+            system_prompt="Eres un experto en Automatización de Pruebas."
+        )
+        self.assertTrue(ok)
+        self.assertIn("test-automation", self.agent.skills_engine.skills)
+        print("✅ [TEST PASSED]: Motor de Skills (Auto-Detección por Conversación y Auto-Generación create_skill) funciona 100%.")
+
 if __name__ == "__main__":
     unittest.main()
