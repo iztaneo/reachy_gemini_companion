@@ -17,8 +17,12 @@ class Config:
     # Anthropic Claude API configuration
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
+
+    # OpenAI API configuration
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
     
-    # LLM Provider configuration ("gemini", "claude", "ollama", or "auto")
+    # LLM Provider configuration ("gemini", "claude", "openai", "ollama", or "auto")
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "claude").lower()
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma4:latest")
     OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")

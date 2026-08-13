@@ -74,11 +74,10 @@ class TestReachyAgentAndVision(unittest.TestCase):
         self.assertTrue(is_triggered)
         self.assertEqual(cmd, "cuéntame un chiste")
 
-        # 3. Test Document RAG Assistant
-        self.agent.document_rag.add_document("Datasheet TB6612FNG", "El controlador opera a 1.2A continuo.")
-        docs = self.agent.document_rag.query_documents("TB6612FNG")
-        self.assertTrue(len(docs) > 0)
-        self.assertIn("TB6612FNG", docs[0])
+        # 3. Test Document RAG Skill
+        rag_skill = self.agent.skills_engine.auto_detect_skill("¿A qué voltaje opera el controlador de motores TB6612FNG?")
+        self.assertIsNotNone(rag_skill)
+        self.assertEqual(rag_skill["name"], "document-rag")
 
         # 4. Test Vocal Sentiment Analyzer
         sentiment_info = self.agent.vocal_sentiment.analyze_text_sentiment("¡Excelente trabajo genial!")

@@ -181,6 +181,62 @@ class OllamaProvider(BaseLLMProvider):
                 "api_status": f"Ollama Error: {e}"
             }
 
+class OpenAIProvider(BaseLLMProvider):
+    def __init__(self, config: Config):
+        import openai
+        self.config = config
+        self.client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
+        self.model_name = config.OPENAI_MODEL
+
+    def generate(self, prompt: str, system_instruction: str, memory_context: str, frame: Optional[np.ndarray] = None, detections: Optional[list] = None) -> Dict[str, Any]:
+        full_system = f"{system_instruction}\n{memory_context}"
+        user_text = prompt
+        if detections:
+            user_text += f"\n[Pollen Vision detectó]: {detections}"
+
+        messages_payload = [{"role": "system", "content": full_system}]
+        user_content = []
+
+        if frame is not None and cv2 is not None:
+            try:
+                h, w = frame.shape[:2]
+                small_frame = cv2.resize(frame, (640, 480)) if (w > 640 or h > 480) else frame
+                ret, img_buffer = cv2.imencode('.jpg', small_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                if ret and img_buffer is not None:
+                    img_b64 = base64.b64encode(img_buffer.tobytes()).decode('utf-8')
+                    user_content.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}
+                    })
+            except Exception as ex:
+                logger.error(f"Error encoding frame image for OpenAI API: {ex}")
+
+        user_content.append({"type": "text", "text": user_text})
+        messages_payload.append({"role": "user", "content": user_content})
+
+        try:
+            res = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages_payload,
+                max_tokens=300
+            )
+            return {
+                "text": res.choices[0].message.content,
+                "model": self.model_name,
+                "provider": "openai",
+                "status": "success",
+                "api_status": "200 OK (OpenAI)"
+            }
+        except Exception as e:
+            err_str = str(e)
+            return {
+                "text": f"⚠️ [OpenAI Error]: {err_str}",
+                "model": self.model_name,
+                "provider": "openai",
+                "status": "error",
+                "api_status": f"OpenAI Error: {err_str}"
+            }
+
 class LLMProviderFactory:
     """Factory to instantiate the appropriate provider based on configuration."""
     
@@ -190,6 +246,9 @@ class LLMProviderFactory:
         if provider_name == "claude":
             logger.info("Initializing Anthropic Claude LLM Provider...")
             return ClaudeProvider(config)
+        elif provider_name == "openai":
+            logger.info("Initializing OpenAI LLM Provider...")
+            return OpenAIProvider(config)
         elif provider_name == "ollama":
             logger.info("Initializing Ollama Local LLM Provider...")
             return OllamaProvider(config)

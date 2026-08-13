@@ -24,7 +24,6 @@ from reachy_gemini_companion.src.providers import LLMProviderFactory
 
 from reachy_gemini_companion.src.hand_gestures import HandGestureRecognizer
 from reachy_gemini_companion.src.wake_word import WakeWordDetector
-from reachy_gemini_companion.src.document_rag import DocumentRAGAssistant
 from reachy_gemini_companion.src.vocal_sentiment import VocalSentimentAnalyzer
 from reachy_gemini_companion.src.autonomous_agent import AutonomousAgent
 from reachy_gemini_companion.src.skills_engine import SkillsEngine
@@ -53,7 +52,6 @@ class GeminiAgent:
         self.provider = LLMProviderFactory.get_provider(config)
         self.hand_gestures = HandGestureRecognizer()
         self.wake_word = WakeWordDetector()
-        self.document_rag = DocumentRAGAssistant()
         self.vocal_sentiment = VocalSentimentAnalyzer()
         self.autonomous_agent = AutonomousAgent()
         self.skills_engine = SkillsEngine()
@@ -104,15 +102,9 @@ class GeminiAgent:
             if gesture:
                 gesture_context = f"\n[VISIÓN DE GESTO DE MANO EN TIEMPO REAL]: El usuario está haciendo la seña/gesto con la mano: '{gesture}' (ej. victory=✌️ paz/saludo, palm=🖐️ palma/alto, thumbs_up=👍 pulgar arriba). Respóndele o reacciona al gesto si aplica."
 
-        # Document RAG Assistant Query
-        doc_rag_facts = self.document_rag.query_documents(text)
-        doc_context = ""
-        if doc_rag_facts:
-            doc_context = "\n[ASISTENTE TÉCNICO & ESQUEMÁTICOS RAG]:\n" + "\n".join(doc_rag_facts)
-
         # Retrieve relevant long-term memories
         memories = self.memory.retrieve_relevant_memories(text)
-        memory_context = biometric_context + gesture_context + doc_context
+        memory_context = biometric_context + gesture_context
         if memories:
             memory_context += "\n[MEMORIAS DEL USUARIO]:\n" + "\n".join([f"- {m}" for m in memories])
 

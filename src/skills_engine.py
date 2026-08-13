@@ -11,13 +11,36 @@ from typing import Dict, Any, List, Optional, Tuple
 logger = logging.getLogger("SkillsEngine")
 
 class SkillsEngine:
-    """Manages skill scanning, semantic auto-detection, and auto-generation of skills."""
+    """Manages skill scanning, prompt template repository, semantic auto-detection, and auto-generation."""
 
-    def __init__(self, skills_dir: str = "skills"):
+    def __init__(self, skills_dir: str = "skills", prompts_dir: str = "prompts"):
         self.skills_dir = skills_dir
+        self.prompts_dir = prompts_dir
         os.makedirs(self.skills_dir, exist_ok=True)
+        os.makedirs(self.prompts_dir, exist_ok=True)
         self.skills: Dict[str, Dict[str, Any]] = {}
+        self.prompts: Dict[str, str] = {}
         self.reload_skills()
+        self.reload_prompts()
+
+    def reload_prompts(self) -> int:
+        """Scan prompts/ directory and index all available .txt / .md prompt files."""
+        self.prompts.clear()
+        if not os.path.exists(self.prompts_dir):
+            return 0
+
+        for item in os.listdir(self.prompts_dir):
+            item_path = os.path.join(self.prompts_dir, item)
+            if os.path.isfile(item_path) and (item.endswith(".txt") or item.endswith(".md")):
+                prompt_name = os.path.splitext(item)[0]
+                try:
+                    with open(item_path, "r", encoding="utf-8") as f:
+                        self.prompts[prompt_name] = f.read().strip()
+                except Exception as e:
+                    logger.error(f"Error loading prompt '{item}': {e}")
+
+        logger.info(f"SkillsEngine: Indexed {len(self.prompts)} custom prompts: {list(self.prompts.keys())}")
+        return len(self.prompts)
 
     def reload_skills(self) -> int:
         """Scan skills/ directory and index all available SKILL.md files."""
@@ -146,3 +169,23 @@ class SkillsEngine:
             return True, f"Skill '{clean_name}' auto-generado exitosamente en '{skill_file}'."
         except Exception as e:
             return False, f"Excepción al crear el skill '{clean_name}': {e}"
+
+    def create_prompt(self, name: str, content: str) -> Tuple[bool, str]:
+        """
+        Auto-generate a new custom prompt template file in prompts/ directory.
+        """
+        if not name or not content:
+            return False, "Error: Nombre y contenido del prompt son requeridos."
+
+        clean_name = re.sub(r"[^a-zA-Z0-9_-]", "", name.lower().replace(" ", "_"))
+        prompt_file = os.path.join(self.prompts_dir, f"{clean_name}.md")
+
+        try:
+            with open(prompt_file, "w", encoding="utf-8") as f:
+                f.write(content.strip() + "\n")
+
+            self.reload_prompts()
+            logger.info(f"SkillsEngine: Saved prompt '{clean_name}' at '{prompt_file}'")
+            return True, f"Prompt '{clean_name}' guardado exitosamente en '{prompt_file}'."
+        except Exception as e:
+            return False, f"Excepción al guardar prompt '{clean_name}': {e}"

@@ -138,4 +138,27 @@ class AutonomousAgent:
                 "emotion": "surprised"
             }
 
+        # 6. Auto-Generation of Custom Prompt Templates Intent
+        if any(w in prompt_lower for w in ["crea un prompt", "guarda este prompt", "nuevo prompt", "plantilla de prompt"]):
+            prompt_name = "plantilla_explicacion_simple"
+            if "resumen" in prompt_lower:
+                prompt_name = "plantilla_resumen_ejecutivo"
+
+            prompt_content = (
+                "# Plantilla de Prompt: Explicación Sencilla 💡\n\n"
+                "Explica el siguiente concepto técnico como si tu oyente tuviera 10 años, "
+                "utilizando analogías cotidianas y sin jerga matemática compleja.\n"
+            )
+
+            from reachy_gemini_companion.src.skills_engine import SkillsEngine
+            skills_engine = SkillsEngine()
+            ok, msg = skills_engine.create_prompt(prompt_name, prompt_content)
+
+            return {
+                "action": "create_prompt",
+                "result": msg,
+                "text": f"¡Hecho César! {msg}",
+                "emotion": "happy"
+            }
+
         return None
